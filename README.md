@@ -37,7 +37,7 @@ docker compose up -d
 
 - Kafka UI: http://localhost:8080  
 - Schema Registry: http://localhost:8081  
-- Brokers (host): `localhost:9092,9093,9094`
+- Brokers (host): `localhost:29092,39092,49092`
 
 Topics created by `kafka-init`:
 
@@ -87,7 +87,7 @@ Partition key = `customerId` (ordering per customer).
 
 | Variable | Effect |
 |----------|--------|
-| `KAFKA_BOOTSTRAP` | Override bootstrap (default localhost:9092,9093,9094) |
+| `KAFKA_BOOTSTRAP` | Override bootstrap (default localhost:29092,39092,49092) |
 | `PARTITION_ASSIGNMENT` | `Range` or `CooperativeSticky` |
 | `PROCESS_DELAY_MS` | Artificial processing delay (lag) |
 | `COMMIT_BEFORE_PROCESS` | `true` = at-most-once (Notification/Inventory) |

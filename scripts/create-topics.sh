@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-BOOTSTRAP="kafka-1:29092,kafka-2:29092,kafka-3:29092"
+BOOTSTRAP="${BOOTSTRAP:-kafka-1:19092,kafka-2:19092,kafka-3:19092}"
 BIN=/opt/kafka/bin
 
 echo "Waiting for cluster..."

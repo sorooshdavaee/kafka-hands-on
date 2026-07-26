@@ -16,6 +16,6 @@ public static class ConsumerGroups
 
 public static class KafkaDefaults
 {
-    public const string BootstrapServers = "localhost:9092,localhost:9093,localhost:9094";
+    public const string BootstrapServers = "localhost:29092,localhost:39092,localhost:49092";
     public const string SchemaRegistryUrl = "http://localhost:8081";
 }
