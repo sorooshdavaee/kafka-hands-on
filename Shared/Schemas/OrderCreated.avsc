@@ -1,0 +1,20 @@
+{
+  "type": "record",
+  "name": "OrderCreated",
+  "namespace": "shared.avro",
+  "doc": "Step 6 — Avro schema for orders (register in Schema Registry).",
+  "fields": [
+    { "name": "OrderId", "type": "string" },
+    { "name": "CustomerId", "type": "string" },
+    { "name": "ProductId", "type": "string" },
+    { "name": "Quantity", "type": "int" },
+    { "name": "Amount", "type": "double" },
+    {
+      "name": "Discount",
+      "type": "double",
+      "default": 0,
+      "doc": "Added with default for BACKWARD compatibility"
+    },
+    { "name": "CreatedAt", "type": "string" }
+  ]
+}

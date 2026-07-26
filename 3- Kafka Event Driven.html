@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>هفته ۳: Kafka به Event-Driven Architecture</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --card:#1e293b;
+    --border:#334155;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --accent:#38bdf8;
+    --accent2:#a78bfa;
+    --warn:#f87171;
+    --code-bg:#0b1220;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Vazirmatn","IRANSans",-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,sans-serif;
+    line-height:1.9;
+    margin:0;
+    padding:40px 16px;
+  }
+  #preview{
+    max-width:860px;
+    margin:0 auto;
+  }
+  h2{
+    color:var(--accent);
+    font-size:1.5rem;
+    border-bottom:2px solid var(--border);
+    padding-bottom:10px;
+    margin-top:2.2rem;
+  }
+  h3{
+    color:var(--accent2);
+    font-size:1.15rem;
+    margin-top:1.8rem;
+  }
+  p{
+    color:var(--text);
+    margin:0.6rem 0;
+  }
+  p strong{
+    color:var(--accent);
+    font-size:1.05rem;
+  }
+  ul{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 30px;
+    margin:8px 0 18px;
+  }
+  ul li{
+    margin:8px 0;
+    color:var(--text);
+  }
+  ol{
+    padding-right:20px;
+    margin:0;
+  }
+  ol > li{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-right:4px solid var(--warn);
+    border-radius:8px;
+    padding:14px 18px;
+    margin-bottom:14px;
+  }
+  ol > li p{
+    margin:0;
+  }
+  code{
+    background:var(--code-bg);
+    color:#fbbf24;
+    padding:2px 8px;
+    border-radius:6px;
+    font-family:"Fira Code","Consolas",monospace;
+    font-size:0.9em;
+    direction:ltr;
+    display:inline-block;
+  }
+  hr{
+    border:none;
+    border-top:1px solid var(--border);
+    margin:2.5rem 0;
+  }
+</style>
+</head>
+<body id="preview">
+
+<h2>پروژه هفته ۳: از Kafka خام به Event-Driven Architecture واقعی</h2>
+<p>ادامه همون پروژه سفارش (order processing)، ولی حالا وارد لایه معماری واقعی می‌شیم که به دردت می‌خوره (Outbox, CDC, CQRS).</p>
+
+<h3>هدف</h3>
+<p>حذف Dual-write Problem و ساخت یک Read Model واقعی با Kafka Streams.</p>
+
+<h3>گام‌ها</h3>
+
+<p><strong>۱. Transactional Outbox Pattern</strong></p>
+<ul>
+  <li>یک دیتابیس (Postgres) برای سرویس Order بساز.</li>
+  <li>به جای publish مستقیم به Kafka، رکورد event رو در جدول <code>outbox</code> همون تراکنش دیتابیسی ذخیره کن.</li>
+</ul>
+
+<p><strong>۲. CDC با Debezium</strong></p>
+<ul>
+  <li>Debezium رو روی Postgres راه‌اندازی کن (Docker).</li>
+  <li>تغییرات جدول <code>outbox</code> رو به‌صورت خودکار به Kafka topic بفرست (بدون نیاز به Producer دستی).</li>
+</ul>
+
+<p><strong>۳. Kafka Streams / ksqlDB برای Read Model</strong></p>
+<ul>
+  <li>یک Stream App بنویس که از topic سفارش‌ها بخونه و یک <strong>KTable</strong> (وضعیت جاری هر سفارش) بسازه.</li>
+  <li>این KTable رو به یک topic دیگه (compacted) بریز — این می‌شه Read Model برای Query.</li>
+</ul>
+
+<p><strong>۴. تست سناریوی خرابی</strong></p>
+<ul>
+  <li>سرویس Order رو وسط یک تراکنش Kill کن، ببین Debezium و Outbox چطور Consistency رو حفظ می‌کنن.</li>
+</ul>
+
+<hr>
+
+<h2>سوالات این بخش</h2>
+<ol>
+  <li><p><strong>چرا Outbox Pattern دقیقاً مشکل Dual-write رو حل می‌کنه؟</strong> اگه به جای Outbox، مستقیم توی همون تابع هم به DB بنویسیم هم به Kafka publish کنیم، چه سناریوی failure ای اتفاق می‌افته؟</p></li>
+  <li><p><strong>نقش Debezium در معماری چیه؟</strong> چرا CDC-based Outbox بهتر از این هست که یک polling job جدول outbox رو بخونه و خودش publish کنه؟</p></li>
+  <li><p><strong>تفاوت KStream و KTable در Kafka Streams چیه؟</strong> چرا برای Read Model از KTable استفاده می‌کنیم نه KStream؟</p></li>
+  <li><p><strong>اگه Read Model (KTable) به‌خاطر crash عقب بیفته (lag داشته باشه)، این چه مدل Consistency ای رو به ما تحمیل می‌کنه؟</strong> (اسم دقیق این مدل رو بگو و توضیح بده چرا سیستم CQRS اصولاً همینو می‌پذیره.)</p></li>
+  <li><p><strong>فرض کن Debezium خودش crash کنه وسط خوندن WAL پستگرس. چرا duplicate event ارسال می‌شه ولی lost event نه؟</strong> این رابطه با کدوم guarantee مربوطه؟</p></li>
+</ol>
+
+</body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>استک پیشنهادی (C#) — EventDrivenLab</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --card:#1e293b;
+    --border:#334155;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --accent:#38bdf8;
+    --accent2:#a78bfa;
+    --warn:#f87171;
+    --code-bg:#0b1220;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Vazirmatn","IRANSans",-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,sans-serif;
+    line-height:1.9;
+    margin:0;
+    padding:40px 16px;
+  }
+  #preview{
+    max-width:900px;
+    margin:0 auto;
+  }
+  h2{
+    color:var(--accent);
+    font-size:1.5rem;
+    border-bottom:2px solid var(--border);
+    padding-bottom:10px;
+    margin-top:2.4rem;
+  }
+  h3{
+    color:var(--accent2);
+    font-size:1.15rem;
+    margin-top:1.8rem;
+  }
+  p{
+    color:var(--text);
+    margin:0.6rem 0;
+  }
+  p strong{
+    color:var(--accent);
+  }
+  a{
+    color:var(--accent);
+    text-decoration:none;
+  }
+  a:hover{ text-decoration:underline; }
+
+  /* Lists */
+  ul{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 30px;
+    margin:8px 0 18px;
+  }
+  ul li{
+    margin:8px 0;
+  }
+  ol{
+    padding-right:20px;
+    margin:0 0 18px;
+  }
+  ol > li{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-right:4px solid var(--accent2);
+    border-radius:8px;
+    padding:14px 18px;
+    margin-bottom:14px;
+  }
+
+  /* Inline code */
+  code{
+    background:var(--code-bg);
+    color:#fbbf24;
+    padding:2px 8px;
+    border-radius:6px;
+    font-family:"Fira Code","Consolas",monospace;
+    font-size:0.9em;
+    direction:ltr;
+    display:inline-block;
+    unicode-bidi:embed;
+  }
+
+  /* Code blocks */
+  pre{
+    background:var(--code-bg);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:18px 20px;
+    overflow-x:auto;
+    direction:ltr;
+    text-align:left;
+    margin:16px 0;
+  }
+  pre code{
+    background:none;
+    color:#cbd5e1;
+    padding:0;
+    display:block;
+    font-size:0.88em;
+    line-height:1.7;
+  }
+  /* highlight.js palette (dark, Kafka-lab tuned) */
+  .hljs-keyword{ color:#c792ea; }
+  .hljs-title{ color:#82aaff; }
+  .hljs-function .hljs-title{ color:#82aaff; }
+  .hljs-comment{ color:#546e7a; font-style:italic; }
+  .hljs-string{ color:#c3e88d; }
+  .hljs-number{ color:#f78c6c; }
+  .hljs-attr{ color:#89ddff; }
+  .hljs-built_in{ color:#ffcb6b; }
+  .hljs-params{ color:#e2e8f0; }
+
+  /* Table */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    margin:14px 0 20px;
+  }
+  thead th{
+    background:#1a2333;
+    color:var(--accent);
+    text-align:right;
+    padding:12px 16px;
+    border-bottom:2px solid var(--border);
+  }
+  tbody td{
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:#20304a; }
+
+  hr{
+    border:none;
+    border-top:1px solid var(--border);
+    margin:2.5rem 0;
+  }
+
+  /* Callout / Question box */
+  .callout{
+    background:linear-gradient(180deg,#1e293b,#182233);
+    border:1px solid var(--border);
+    border-right:4px solid var(--accent);
+    border-radius:10px;
+    padding:16px 20px;
+    margin:18px 0;
+  }
+</style>
+</head>
+<body id="preview">
+
+<h2>استک پیشنهادی (C#)</h2>
+
+<h3>ساختار پروژه</h3>
+<p>
+📁 EventDrivenLab<br>
+├── Order.Api          → ASP.NET Core Minimal API<br>
+├── Order.Domain        → Entities + OutboxMessage<br>
+├── Order.Infrastructure → EF Core + Postgres<br>
+├── ReadModel.Processor  → Stream Consumer (توضیح پایین)<br>
+└── TrafficGenerator.Worker → مولد دیتای فیک
+</p>
+
+<h3>ORM و Database</h3>
+<table>
+<thead>
+<tr>
+<th>بخش</th>
+<th>انتخاب</th>
+<th>دلیل</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ORM</td>
+<td><strong>EF Core</strong></td>
+<td>ساده و آشنا، UoW طبیعتاً با <code>SaveChanges</code> پیاده میشه</td>
+</tr>
+<tr>
+<td>DB</td>
+<td><strong>PostgreSQL</strong></td>
+<td>Debezium نیاز به <code>wal_level = logical</code> داره؛ MySQL هم پشتیبانی میشه ولی Postgres تمیزتره</td>
+</tr>
+</tbody>
+</table>
+
+<p>نکته مهم: <code>OutboxMessage</code> رو باید توی <strong>همون DbContext</strong> و همون Entity که Order رو داره تعریف کنی، تا <code>SaveChanges</code> یکجا هر دو رو توی یک تراکنش commit کنه. این خودِ اصل Outbox Pattern هست.</p>
+
+<pre><code class="language-csharp"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">Order</span> : <span class="hljs-title">AggregateRoot</span>
+{
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Place</span>()</span>
+    {
+        <span class="hljs-comment">// domain logic</span>
+        AddDomainEvent(<span class="hljs-keyword">new</span> OrderPlacedEvent(...));
+    }
+}
+</code></pre>
+
+<p>توی EF Core interceptor یا <code>SaveChangesAsync</code> override، Domain Event ها رو serialize کن و به‌عنوان ردیف در جدول <code>outbox_messages</code> اضافه کن — همون تراکنش، همون commit.</p>
+
+<h3>یک نکته فنی مهم درباره‌ی Kafka Streams</h3>
+<p><strong>Kafka Streams یک کتابخونه‌ی JVM-only هست</strong> — معادل رسمی .NET نداره. دو راه داری:</p>
+<ol>
+<li>با <code>Confluent.Kafka</code> client دستی یک Stream Processor بسازی (Consume از topic → state رو نگه‌دار → Produce به compacted topic) — خودت state store رو شبیه‌سازی می‌کنی.</li>
+<li>برای Debezium Outbox Router از یک SMT (Single Message Transform) به اسم <strong>Outbox Event Router</strong> استفاده کنی که خودِ Debezium داره — این بهت اجازه میده مستقیم از جدول outbox، event های تمیز و ساختاریافته به topic بفرستی، بدون نیاز به پردازش اضافه.</li>
+</ol>
+<p>پیشنهاد من: برای <code>ReadModel.Processor</code> گزینه ۱ رو با <code>Confluent.Kafka</code> بزن، چون هم واقعی‌تره برای مصاحبه‌های خارج، هم می‌فهمی زیر پوست Kafka Streams چه اتفاقی می‌افته (که مهم‌تر از استفاده از کتابخونه‌ست).</p>
+
+<hr>
+
+<h2>ایده‌ی جذاب‌سازی: Traffic Generator Worker</h2>
+<p>دقیقاً حرفت درسته — سیستمی که ساکنه، انگیزه نمیده. پیشنهاد:</p>
+
+<pre><code class="language-csharp"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">TrafficGeneratorWorker</span> : <span class="hljs-title">BackgroundService</span>
+{
+    <span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> <span class="hljs-keyword">async</span> Task <span class="hljs-title">ExecuteAsync</span>(<span class="hljs-params">CancellationToken ct</span>)</span>
+    {
+        <span class="hljs-keyword">var</span> faker = <span class="hljs-keyword">new</span> Faker&lt;CreateOrderRequest&gt;()
+            .RuleFor(o =&gt; o.CustomerName, f =&gt; f.Name.FullName())
+            .RuleFor(o =&gt; o.Amount, f =&gt; f.Random.Decimal(<span class="hljs-number">10</span>, <span class="hljs-number">5000</span>));
+
+        <span class="hljs-keyword">while</span> (!ct.IsCancellationRequested)
+        {
+            <span class="hljs-keyword">var</span> order = faker.Generate();
+            <span class="hljs-keyword">await</span> _httpClient.PostAsJsonAsync(<span class="hljs-string">"/orders"</span>, order, ct);
+
+            <span class="hljs-comment">// فاصله‌ی تصادفی برای شبیه‌سازی ترافیک واقعی (نه یکنواخت)</span>
+            <span class="hljs-keyword">var</span> delay = Random.Shared.Next(<span class="hljs-number">500</span>, <span class="hljs-number">3000</span>);
+            <span class="hljs-keyword">await</span> Task.Delay(delay, ct);
+        }
+    }
+}
+</code></pre>
+
+<p>از پکیج <strong>Bogus</strong> (معادل Faker.js توی .NET) استفاده کن.</p>
+
+<h3>برای هیجان بیشتر - Chaos Injection</h3>
+<p>یک endpoint یا سوییچ بذار که وسط اجرای Worker:</p>
+<ul>
+<li>سرویس <code>Order.Api</code> رو با <code>docker kill</code> قطع کنه وسط یه batch از request ها</li>
+<li>بعد ببینی چند تا outbox message pending موند، Debezium بعد از up شدن دوباره چطور ادامه میده</li>
+<li>توی Kafka UI (مثل <code>provectuslabs/kafka-ui</code>) لایو ببینی topic ها پر میشن</li>
+</ul>
+<p>این دقیقاً سناریوی سوال ۴ و ۵ قبلی رو برات <strong>قابل مشاهده</strong> می‌کنه به جای صرفاً تئوری.</p>
+
+<hr>
+
+<div class="callout">
+<p><strong>سوال برگردون بهت:</strong> برای <code>ReadModel.Processor</code>، ترجیح میدی state رو در حافظه (in-memory <code>ConcurrentDictionary</code>) نگه داری یا از یه storage سبک مثل RocksDB/SQLite به‌عنوان local state store استفاده کنی (که خودِ Kafka Streams واقعی هم همینو انجام میده)؟</p>
+</div>
+
+<h2>ساختار کامل Solution</h2>
+
+<pre><code>EventDrivenLab/
+│
+├── EventDrivenLab.sln
+├── docker-compose.yml
+│
+├── docker/
+│   ├── debezium/
+│   │   └── outbox-connector.json          → کانفیگ Debezium connector + Outbox Event Router SMT
+│   └── init-scripts/
+│       └── 01-init.sql                     → ساخت جدول outbox_messages (اگر خواستی جدا از Migration)
+│
+├── src/
+│   │
+│   ├── Order.Domain/                       ← بدون هیچ وابستگی (هسته)
+│   │   ├── Common/
+│   │   │   ├── AggregateRoot.cs
+│   │   │   ├── Entity.cs
+│   │   │   ├── ValueObject.cs
+│   │   │   └── IDomainEvent.cs
+│   │   ├── Orders/
+│   │   │   ├── Order.cs
+│   │   │   ├── OrderStatus.cs
+│   │   │   ├── OrderLine.cs
+│   │   │   ├── Money.cs                    → Value Object نمونه
+│   │   │   └── Events/
+│   │   │       ├── OrderPlacedDomainEvent.cs
+│   │   │       └── OrderCancelledDomainEvent.cs
+│   │   ├── Outbox/
+│   │   │   └── OutboxMessage.cs
+│   │   └── Order.Domain.csproj
+│   │
+│   ├── Order.Application/                  ← وابسته فقط به Domain
+│   │   ├── Abstractions/
+│   │   │   ├── IUnitOfWork.cs
+│   │   │   ├── IOrderRepository.cs
+│   │   │   └── IDateTimeProvider.cs
+│   │   ├── Orders/
+│   │   │   ├── Commands/
+│   │   │   │   └── PlaceOrder/
+│   │   │   │       ├── PlaceOrderCommand.cs
+│   │   │   │       ├── PlaceOrderCommandHandler.cs
+│   │   │   │       └── PlaceOrderValidator.cs   (FluentValidation)
+│   │   │   └── Queries/
+│   │   │       └── GetOrderById/
+│   │   │           ├── GetOrderByIdQuery.cs
+│   │   │           └── GetOrderByIdQueryHandler.cs
+│   │   ├── DependencyInjection.cs          → extension method AddApplication()
+│   │   └── Order.Application.csproj
+│   │
+│   ├── Order.Infrastructure/                ← وابسته به Application + Domain
+│   │   ├── Persistence/
+│   │   │   ├── AppDbContext.cs
+│   │   │   ├── Configurations/
+│   │   │   │   ├── OrderConfiguration.cs    (IEntityTypeConfiguration&lt;Order&gt;)
+│   │   │   │   └── OutboxMessageConfiguration.cs
+│   │   │   ├── Interceptors/
+│   │   │   │   └── OutboxSaveChangesInterceptor.cs   ★ کلید Outbox Pattern
+│   │   │   ├── Repositories/
+│   │   │   │   └── OrderRepository.cs
+│   │   │   └── UnitOfWork.cs
+│   │   ├── Migrations/                      → auto-generated by EF Core
+│   │   ├── DependencyInjection.cs
+│   │   └── Order.Infrastructure.csproj
+│   │
+│   ├── Order.Api/                            ← Composition Root
+│   │   ├── Program.cs                        → wiring همه لایه‌ها
+│   │   ├── Endpoints/
+│   │   │   └── OrderEndpoints.cs             (Minimal API)
+│   │   ├── appsettings.json
+│   │   ├── appsettings.Development.json
+│   │   └── Order.Api.csproj
+│   │
+│   ├── ReadModel.Processor/                  ← سرویس مستقل Consumer
+│   │   ├── Program.cs
+│   │   ├── Consumers/
+│   │   │   └── OrderPlacedConsumer.cs        (Confluent.Kafka)
+│   │   ├── Models/
+│   │   │   └── OrderReadModel.cs
+│   │   ├── Storage/
+│   │   │   ├── IReadModelStore.cs
+│   │   │   └── InMemoryReadModelStore.cs     (بعداً می‌تونی RocksDb بذاری)
+│   │   ├── appsettings.json
+│   │   └── ReadModel.Processor.csproj
+│   │
+│   ├── TrafficGenerator.Worker/              ← سرویس مستقل تولید ترافیک
+│   │   ├── Program.cs
+│   │   ├── Workers/
+│   │   │   ├── TrafficGeneratorWorker.cs
+│   │   │   └── ChaosInjectorWorker.cs        ★ برای شبیه‌سازی failure
+│   │   ├── Fakers/
+│   │   │   └── OrderRequestFaker.cs          (Bogus)
+│   │   ├── appsettings.json
+│   │   └── TrafficGenerator.Worker.csproj
+│   │
+│   └── BuildingBlocks/
+│       └── Messaging.Kafka/
+│           ├── KafkaProducerFactory.cs
+│           ├── KafkaConsumerFactory.cs
+│           └── Messaging.Kafka.csproj
+│
+└── tests/
+    ├── Order.Domain.UnitTests/
+    │   └── OrderTests.cs
+    ├── Order.Application.UnitTests/
+    │   └── PlaceOrderCommandHandlerTests.cs
+    └── Order.Infrastructure.IntegrationTests/
+        ├── OutboxInterceptorTests.cs
+        └── (استفاده از Testcontainers.PostgreSql)
+</code></pre>
+
+<hr>
+
+<h2>قانون وابستگی (Dependency Rule)</h2>
+<pre><code>Domain  ←  Application  ←  Infrastructure
+                                ↑
+                    Api (composition root, به همه رفرنس داره)
+</code></pre>
+<p><code>Order.Domain</code> هیچ پکیج NuGet خارجی نداره — نه EF Core، نه Kafka. اینجا همون جاییه که Khorikov تاکید داره روی <strong>Persistence Ignorance</strong>.</p>
+
+<hr>
+
+<h2>فایل‌های کلیدی که باید دقیق طراحی بشن</h2>
+
+<h3>۱. <code>OutboxSaveChangesInterceptor.cs</code></h3>
+<pre><code class="language-csharp"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">OutboxSaveChangesInterceptor</span> : <span class="hljs-title">SaveChangesInterceptor</span>
+{
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> InterceptionResult&lt;<span class="hljs-built_in">int</span>&gt; <span class="hljs-title">SavingChanges</span>(<span class="hljs-params">
+        DbContextEventData eventData, InterceptionResult&lt;<span class="hljs-built_in">int</span>&gt; result</span>)</span>
+    {
+        <span class="hljs-keyword">var</span> context = eventData.Context;
+        <span class="hljs-keyword">var</span> domainEvents = context.ChangeTracker
+            .Entries&lt;AggregateRoot&gt;()
+            .SelectMany(e =&gt; e.Entity.DomainEvents);
+
+        <span class="hljs-keyword">foreach</span> (<span class="hljs-keyword">var</span> domainEvent <span class="hljs-keyword">in</span> domainEvents)
+        {
+            context.Set&lt;OutboxMessage&gt;().Add(
+                OutboxMessage.FromDomainEvent(domainEvent));
+        }
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">base</span>.SavingChanges(eventData, result);
+    }
+}
+</code></pre>
+<p>این interceptor توی <code>AppDbContext</code> رجیستر میشه و باعث میشه Domain Event ها <strong>همون تراکنش SaveChanges</strong> به outbox اضافه بشن — بدون نیاز به تغییر توی Handler.</p>
+
+<h3>۲. <code>docker-compose.yml</code> — سرویس‌ها</h3>
+<pre><code class="language-yaml"><span class="hljs-attr">services:</span>
+  <span class="hljs-attr">postgres:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">postgres:16</span>
+    <span class="hljs-attr">command:</span> [<span class="hljs-string">"postgres"</span>, <span class="hljs-string">"-c"</span>, <span class="hljs-string">"wal_level=logical"</span>]
+
+  <span class="hljs-attr">kafka:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">confluentinc/cp-kafka:latest</span>
+    <span class="hljs-attr">environment:</span>
+      <span class="hljs-attr">KAFKA_PROCESS_ROLES:</span> <span class="hljs-string">broker,controller</span>   <span class="hljs-comment"># KRaft</span>
+
+  <span class="hljs-attr">connect:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">debezium/connect:latest</span>
+    <span class="hljs-attr">depends_on:</span> [<span class="hljs-string">kafka</span>, <span class="hljs-string">postgres</span>]
+
+  <span class="hljs-attr">kafka-ui:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">provectuslabs/kafka-ui:latest</span>
+</code></pre>
+
+<hr>
+
+<div class="callout">
+<p><strong>سوال:</strong> برای CQRS داخل <code>Order.Application</code> می‌خوای از <strong>MediatR</strong> استفاده کنی یا دستی (بدون کتابخونه) Handler ها رو صدا بزنی؟ با توجه به هدف یادگیری عمیق، پیشنهادم دستیه — ولی نظر خودت چیه؟</p>
+</div>
+
+<h3>طراحی Dispatcher دستی برای CQRS</h>
+<p>به جای MediatR، یه <code>ICommandHandler&lt;TCommand&gt;</code> و <code>IQueryHandler&lt;TQuery, TResult&gt;</code> ساده تعریف می‌کنیم و از DI Container خود .NET برای resolve استفاده می‌کنیم:</p>
+
+<p><code>Order.Application/Abstractions/ICommandHandler.cs</code></p>
+<pre><code class="language-csharp"><span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title">ICommandHandler</span>&lt;TCommand&gt;
+{
+    Task HandleAsync(TCommand command, CancellationToken ct 

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka Hands-on Project</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --accent:#38bdf8;
+    --accent2:#a78bfa;
+    --code-bg:#0b1220;
+    --border:#334155;
+  }
+  *{box-sizing:border-box}
+  body{
+    direction:rtl;
+    font-family:"Vazirmatn","Segoe UI",Tahoma,Calibri,sans-serif;
+    background:linear-gradient(180deg,#0f172a,#111827);
+    color:var(--text);
+    margin:0;
+    padding:40px 20px;
+    line-height:1.9;
+  }
+  .container{
+    max-width:900px;
+    margin:0 auto;
+  }
+  h1{
+    font-size:1.9rem;
+    color:#f8fafc;
+    border-bottom:3px solid var(--accent);
+    padding-bottom:12px;
+    margin-top:50px;
+  }
+  h1:first-of-type{margin-top:0}
+  h2{
+    font-size:1.35rem;
+    color:var(--accent);
+    margin-top:38px;
+    padding-right:12px;
+    border-right:4px solid var(--accent2);
+  }
+  p{
+    color:var(--text);
+    margin:12px 0;
+  }
+  strong{
+    color:#fbbf24;
+  }
+  ul, ol{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 30px;
+    margin:14px 0;
+  }
+  li{
+    margin:8px 0;
+    color:#cbd5e1;
+  }
+  li::marker{
+    color:var(--accent);
+    font-weight:bold;
+  }
+  code{
+    background:var(--code-bg);
+    color:#7dd3fc;
+    padding:2px 8px;
+    border-radius:6px;
+    font-family:Consolas,"Courier New",monospace;
+    font-size:0.92em;
+    direction:ltr;
+    display:inline-block;
+  }
+  a{
+    color:var(--accent2);
+    text-decoration:none;
+  }
+  a:hover{
+    text-decoration:underline;
+  }
+  hr{
+    border:none;
+    border-top:1px solid var(--border);
+    margin:40px 0;
+  }
+  /* بخش‌های Step رو کمی متمایز کن */
+  h2 + p strong:first-child{
+    color:#fbbf24;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>پروژه: Kafka Hands-on برای Distributed Order Processing System</h1>
+
+<h2>هدف پروژه</h2>
+<p>شبیه‌سازی یک سیستم واقعی سفارش (Order Processing) که تمام مفاهیم ضعف‌دار (ISR, Partition Assignment, Exactly-once, Schema Evolution, Consumer Lag) رو عملاً لمس کنی.</p>
+<hr>
+
+<h2>معماری کلی پروژه</h2>
+<p>[Order API (C#)] --&gt; [Kafka: orders-topic] --&gt; [Consumer Group: Payment Service]<br>
+–&gt; [Consumer Group: Notification Service]<br>
+–&gt; [Consumer Group: Inventory Service]</p>
+<p>سه تا Consumer Group مستقل که به یک Topic گوش می‌دن (شبیه‌سازی Choreography Saga).</p>
+<hr>
+
+<h2>Step 1: راه‌اندازی Kafka Cluster با Docker (روز ۱-۲)</h2>
+<p><strong>چیزی که باید بسازی:</strong></p>
+<ul>
+<li>Docker Compose با <strong>۳ Broker Kafka</strong> (نه ۱ broker — این مهمه چون ISR رو فقط با چند Broker می‌بینی)</li>
+<li>۱ Zookeeper یا KRaft mode (پیشنهاد: KRaft چون جدیدتره و Zookeeper رو حذف کرده)</li>
+<li>۱ Kafka UI (مثل <code>provectuslabs/kafka-ui</code>) برای مشاهده Partition/Replica/ISR به صورت بصری</li>
+</ul>
+<p><strong>تسک عملی:</strong></p>
+<ul>
+<li>یک Topic به اسم <code>orders</code> با <code>--partitions 6 --replication-factor 3</code> بساز</li>
+<li>با دستور <code>kafka-topics.sh --describe</code> خروجی رو ببین و دقیقاً بفهم Leader/Replicas/ISR یعنی چی</li>
+</ul>
+<p><strong>چک‌پوینت یادگیری:</strong><br>
+باید بتونی توضیح بدی چرا Partition Count بعد از ساخت Topic راحت افزایش پیدا می‌کنه ولی کاهش نه، و replication-factor چطور روی Broker های موجود توزیع می‌شه.</p>
+<hr>
+
+<h2>Step 2: Producer با C# (روز ۳-۴)</h2>
+<p><strong>چیزی که باید بسازی:</strong><br>
+یک <a href="http://ASP.NET">ASP.NET</a> Core Web API ساده (<code>POST /orders</code>) که با <strong>Confluent.Kafka</strong> پیام Order رو Produce کنه.</p>
+<p><strong>نکات فنی که باید پیاده کنی، نه فقط بخونی:</strong></p>
+<ul>
+<li><code>acks=all</code> رو تنظیم کن و تفاوتش رو با <code>acks=1</code> در سناریوی Broker Down تست کن</li>
+<li><strong>Idempotent Producer</strong> (<code>enable.idempotence=true</code>) رو فعال کن</li>
+<li>یک <strong>Partition Key</strong> معنادار انتخاب کن (مثلاً CustomerId) و بفهم چرا این کار Order Guarantee در سطح مشتری می‌ده نه در سطح کل Topic</li>
+</ul>
+<p><strong>تسک عملی (خیلی مهم):</strong><br>
+موقع تست، یکی از ۳ Broker رو با <code>docker stop</code> خاموش کن درحالی که Producer داره پیام می‌فرسته. رفتار Cluster (Leader Election جدید، ISR Shrink) رو در Kafka UI مشاهده کن.</p>
+<hr>
+
+<h2>Step 3: Consumer با C# — سه سرویس مستقل (روز ۵-۷)</h2>
+<p><strong>چیزی که باید بسازی:</strong><br>
+سه Console App جدا (نه یک پروژه):</p>
+<ol>
+<li><code>PaymentService</code> — Consumer Group: <code>payment-group</code></li>
+<li><code>NotificationService</code> — Consumer Group: <code>notification-group</code></li>
+<li><code>InventoryService</code> — Consumer Group: <code>inventory-group</code></li>
+</ol>
+<p><strong>نکات فنی که باید پیاده کنی:</strong></p>
+<ul>
+<li><strong>Manual Commit</strong> به جای Auto Commit (<code>enable.auto.commit=false</code>) — و بفهمی چرا در سیستم واقعی این حیاتیه</li>
+<li>تفاوت <code>Commit()</code> بعد از پردازش (At-least-once) در برابر قبل از پردازش (At-most-once) رو با کد تست کن، نه فقط تئوری</li>
+</ul>
+<p><strong>تسک عملی برای Partition Rebalancing:</strong></p>
+<ul>
+<li>یک نمونه از <code>PaymentService</code> رو اجرا کن، ببین همه ۶ Partition بهش اختصاص پیدا می‌کنه</li>
+<li>یک نمونه دیگه از همون سرویس (همون Consumer Group) اجرا کن، ببین Rebalance اتفاق می‌افته و Partition ها بین دو Instance تقسیم می‌شه</li>
+<li>این کار رو با Strategy های مختلف (<code>RangeAssignor</code> vs <code>CooperativeStickyAssignor</code>) امتحان کن و تفاوت رفتار Rebalance (Stop-the-world در برابر Incremental) رو مشاهده کن</li>
+</ul>
+<hr>
+
+<h2>Step 4: Consumer Lag Monitoring (روز ۸)</h2>
+<p><strong>چیزی که باید بسازی:</strong></p>
+<ul>
+<li>یک Consumer که عمداً کند پردازش می‌کنه (مثلاً <code>Thread.Sleep(500)</code>)</li>
+<li>با دستور <code>kafka-consumer-groups.sh --describe --group payment-group</code> مقدار Lag رو ببین</li>
+</ul>
+<p><strong>چک‌پوینت:</strong><br>
+باید بفهمی Lag یعنی چی (تفاوت High Watermark و Committed Offset) و چطور می‌شه Alert روش گذاشت.</p>
+<hr>
+
+<h2>Step 5: Exactly-once با Transactional API (روز ۹-۱۰)</h2>
+<p><strong>سناریوی واقعی که باید پیاده کنی:</strong><br>
+<code>PaymentService</code> بعد از خوندن پیام Order، باید یک پیام جدید به Topic دیگه (<code>payment-results</code>) بفرسته — این Read-Process-Write باید Atomic باشه.</p>
+<p><strong>پیاده‌سازی:</strong></p>
+<ul>
+<li>از <code>Producer</code> با <code>TransactionalId</code> استفاده کن</li>
+<li><code>BeginTransaction()</code>, <code>SendOffsetsToTransaction()</code>, <code>CommitTransaction()</code> رو پیاده کن</li>
+<li>عمداً یک Exception بنداز وسط پردازش و ببین با <code>AbortTransaction()</code> هم پیام جدید ارسال نمی‌شه و هم Offset اصلی Commit نمی‌شه</li>
+</ul>
+<p>این دقیقاً همون چیزیه که در Outbox Pattern با DB اتفاق می‌افته، ولی این بار در سطح Kafka به Kafka.</p>
+<hr>
+
+<h2>Step 6: Schema Evolution با Avro (روز ۱۱-۱۲)</h2>
+<p><strong>چیزی که باید بسازی:</strong></p>
+<ul>
+<li>یک Schema Registry (Confluent Schema Registry) به Docker Compose اضافه کن</li>
+<li>Order Message رو با Avro Schema تعریف کن (نه JSON ساده)</li>
+</ul>
+<p><strong>تسک عملی برای فهم Backward/Forward Compatibility:</strong></p>
+<ul>
+<li>یک Field جدید (مثلاً <code>Discount</code>) با Default Value به Schema اضافه کن — Consumer قدیمی رو بدون تغییر اجرا کن، ببین کرش نمی‌کنه (Backward Compatible)</li>
+<li>یک Field رو Rename کن بدون Alias — ببین Schema Registry رد می‌کنه (Compatibility Break)</li>
+</ul>
+<hr>
+
+<h2>Step 7: Log Compaction (روز ۱۳-۱۴)</h2>
+<p><strong>چیزی که باید بسازی:</strong><br>
+یک Topic جدید با <code>cleanup.policy=compact</code> بساز (مثلاً <code>customer-latest-status</code>) که فقط آخرین وضعیت هر مشتری رو نگه داره (Key = CustomerId).</p>
+<p><strong>تسک:</strong><br>
+چند پیام با Key یکسان بفرست، <code>kafka-console-consumer</code> رو بعد از Compaction اجرا کن و ببین فقط آخرین Value مونده.</p>
+<hr>
+
+<h1>سوالاتی که باید بعد از این پروژه بتونی جواب بدی</h1>
+
+<h2>دسته ۱: Broker/Cluster</h2>
+<ol>
+<li>اگه Replication Factor سه باشه و ISR به یک برسه، چه اتفاقی برای <code>acks=all</code> می‌افته؟</li>
+<li>تفاوت <strong>Unclean Leader Election</strong> فعال و غیرفعال در سناریوی از دست رفتن داده چیه؟</li>
+</ol>
+
+<h2>دسته ۲: Producer</h2>
+<ol start="3">
+<li>چرا فعال کردن <code>enable.idempotence=true</code> به تنهایی Duplicate در سطح Consumer رو حل نمی‌کنه؟</li>
+<li>اگه Partition Key رو بر اساس CustomerId انتخاب کنی ولی تعداد Customer خیلی بیشتر از Partition باشه، چه مشکلی (Hot Partition) ممکنه پیش بیاد و راه‌حلش چیه؟</li>
+</ol>
+
+<h2>دسته ۳: Consumer/Rebalancing</h2>
+<ol start="5">
+<li>تفاوت رفتار <code>RangeAssignor</code> و <code>CooperativeStickyAssignor</code> هنگام اضافه شدن یک Consumer جدید چیه؟ (باید بتونی بگی چرا یکی Stop-the-world هست)</li>
+<li>اگه Consumer بعد از پردازش پیام کرش کنه ولی قبل از Commit، در حالت At-least-once چه اتفاقی می‌افته؟ Idempotency در سمت Consumer چطور این مشکل رو حل می‌کنه؟</li>
+</ol>
+
+<h2>دسته ۴: Exactly-once</h2>
+<ol start="7">
+<li><code>Transactional Producer</code> چطور تضمین می‌ده که هم Offset Commit و هم پیام جدید با هم Atomic باشن؟ (باید بتونی نقش <code>__transaction_state</code> Topic رو توضیح بدی)</li>
+<li>تفاوت Exactly-once Semantics در سطح Kafka-to-Kafka با Exactly-once در سناریوی Kafka-to-Database (که همون Outbox Pattern لازمه) چیه؟</li>
+</ol>
+
+<h2>دسته ۵: Schema Evolution</h2>
+<ol start="9">
+<li>چرا اضافه کردن Field بدون Default Value، Backward Compatibility رو می‌شکنه؟</li>
+<li>اگه بخوای یک Field رو Rename کنی بدون شکستن Compatibility، چیکار باید بکنی؟</li>
+</ol>
+
+<h2>دسته ۶: Monitoring</h2>
+<ol start="11">
+<li>Consumer Lag بالا لزوماً به معنی مشکل نیست — در چه شرایطی Lag بالا طبیعیه؟</li>
+<li>تفاوت <strong>Lag</strong> و <strong>Consumer Group Rebalance Rate</strong> بالا از نظر تشخیص مشکل عملیاتی چیه؟</li>
+</ol>
+
+</div>
+</body>
+</html>
