@@ -33,4 +33,12 @@ create_topic customer-latest-status \
   --config min.cleanable.dirty.ratio=0.01 \
   --config segment.ms=10000
 
+# Phase 2: KTable-like compacted read model (key = OrderId)
+create_topic order-read-model \
+  --partitions 6 \
+  --replication-factor 3 \
+  --config cleanup.policy=compact \
+  --config min.cleanable.dirty.ratio=0.01 \
+  --config segment.ms=10000
+
 echo "All topics ready."

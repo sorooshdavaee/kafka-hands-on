@@ -5,6 +5,7 @@ public static class KafkaTopics
     public const string Orders = "orders";
     public const string PaymentResults = "payment-results";
     public const string CustomerLatestStatus = "customer-latest-status";
+    public const string OrderReadModel = "order-read-model";
 }
 
 public static class ConsumerGroups

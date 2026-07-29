@@ -1,4 +1,11 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Order.Application/Order.Application.csproj" />
+    <Project Path="src/Order.Domain/Order.Domain.csproj" />
+    <Project Path="src/Order.Infrastructure/Order.Infrastructure.csproj" />
+    <Project Path="src/ReadModel.Processor/ReadModel.Processor.csproj" />
+    <Project Path="src/TrafficGenerator.Worker/TrafficGenerator.Worker.csproj" />
+  </Folder>
   <Project Path="InventoryService/InventoryService.csproj" />
   <Project Path="NotificationService/NotificationService.csproj" />
   <Project Path="Order.Api/Order.Api.csproj" />

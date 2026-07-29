@@ -146,6 +146,79 @@ services:
     networks:
       - kafka-net
 
+  # Phase 2: Postgres with logical decoding for Debezium CDC
+  postgres:
+    image: postgres:16
+    container_name: orders-postgres
+    command: ["postgres", "-c", "wal_level=logical"]
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+      POSTGRES_DB: orders
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - kafka-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders -d orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Phase 2: Debezium Connect (CDC outbox → Kafka)
+  connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: debezium-connect
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      STATUS_STORAGE_REPLICATION_FACTOR: 3
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    networks:
+      - kafka-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+
+  debezium-init:
+    image: curlimages/curl:8.11.1
+    container_name: debezium-init
+    depends_on:
+      connect:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./docker/debezium/outbox-connector.json:/connector.json:ro
+      - ./scripts/register-debezium.sh:/register-debezium.sh:ro
+    entrypoint: ["/bin/sh", "/register-debezium.sh"]
+    networks:
+      - kafka-net
+
 networks:
   kafka-net:
     driver: bridge
+
+volumes:
+  postgres-data:
